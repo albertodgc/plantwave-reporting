@@ -1,0 +1,199 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plant Wave – Revenue per Recipient</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<style>
+body{
+  font-family: system-ui, -apple-system, sans-serif;
+  background:#f9fafb;
+  margin:0;
+  padding:30px;
+  color:#111;
+}
+.container{
+  max-width:1200px;
+  margin:auto;
+}
+.card{
+  background:#fff;
+  padding:20px;
+  border-radius:14px;
+  box-shadow:0 4px 18px rgba(0,0,0,.06);
+}
+h1{
+  font-size:20px;
+  margin-bottom:4px;
+}
+.sub{
+  font-size:13px;
+  color:#666;
+  margin-bottom:20px;
+}
+.controls{
+  margin-bottom:15px;
+}
+button{
+  padding:8px 12px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  background:#fff;
+  cursor:pointer;
+}
+button:hover{
+  background:#f2f2f2;
+}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:15px;
+}
+.stat{
+  background:#f3f4f6;
+  padding:12px;
+  border-radius:10px;
+}
+.stat .label{
+  font-size:12px;
+  color:#666;
+}
+.stat .value{
+  font-size:18px;
+  font-weight:600;
+}
+canvas{
+  height:110px !important;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <div class="card">
+    <h1>Plant Wave – Revenue per Recipient</h1>
+    <div class="sub">Feb 2024 – Jan 2026 | Monthly Performance</div>
+
+    <div class="controls">
+      <button onclick="toggleRolling()">Toggle 3-Month Rolling Avg</button>
+      <button onclick="downloadChart()">Download PNG</button>
+    </div>
+
+    <canvas id="chart"></canvas>
+
+    <div class="stats" id="stats"></div>
+  </div>
+</div>
+
+<script>
+const labels = [
+"Feb 2024","Mar 2024","Apr 2024","May 2024","Jun 2024","Jul 2024","Aug 2024",
+"Sep 2024","Oct 2024","Nov 2024","Dec 2024","Jan 2025","Feb 2025","Mar 2025",
+"Apr 2025","May 2025","Jun 2025","Jul 2025","Aug 2025","Sep 2025","Oct 2025",
+"Nov 2025","Dec 2025","Jan 2026"
+];
+
+const values = [
+0.0451,0.0417,0.0584,0.0390,0.0468,0.0482,0.0428,0.0249,
+0.0727,0.1170,0.0632,0.0215,0.0346,0.0333,0.0343,0.0178,
+0.0420,0.0248,0.0249,0.0246,0.0189,0.0207,0.0582,0.0160
+];
+
+function rollingAvg(data){
+  return data.map((_,i)=>{
+    if(i<2) return null;
+    return (data[i]+data[i-1]+data[i-2])/3;
+  });
+}
+
+function format(n){ return "$"+n.toFixed(4); }
+
+function percentChange(current,prev){
+  const p=((current-prev)/prev)*100;
+  return (p>0?"+":"")+p.toFixed(1)+"%";
+}
+
+const rolling = rollingAvg(values);
+
+const ctx=document.getElementById("chart").getContext("2d");
+
+const chart=new Chart(ctx,{
+  data:{
+    labels:labels,
+    datasets:[
+      {
+        type:'bar',
+        label:'Revenue per Recipient',
+        data:values,
+        backgroundColor:'rgba(59,130,246,0.5)'
+      },
+      {
+        type:'line',
+        label:'Trend',
+        data:values,
+        borderColor:'#1d4ed8',
+        borderWidth:2,
+        tension:0.25
+      },
+      {
+        type:'line',
+        label:'3M Rolling Avg',
+        data:rolling,
+        borderColor:'#ef4444',
+        borderDash:[5,5],
+        borderWidth:2,
+        tension:0.3,
+        hidden:true
+      }
+    ]
+  },
+  options:{
+    responsive:true,
+    interaction:{mode:'index',intersect:false},
+    scales:{
+      y:{
+        beginAtZero:true,
+        ticks:{
+          callback:(v)=>"$"+v.toFixed(2)
+        }
+      }
+    }
+  }
+});
+
+function toggleRolling(){
+  chart.data.datasets[2].hidden=!chart.data.datasets[2].hidden;
+  chart.update();
+}
+
+function downloadChart(){
+  const a=document.createElement('a');
+  a.href=chart.toBase64Image();
+  a.download="plant-wave-revenue-per-recipient.png";
+  a.click();
+}
+
+function renderStats(){
+  const latest=values[values.length-1];
+  const prev=values[values.length-2];
+  const max=Math.max(...values);
+  const min=Math.min(...values);
+  const avg=values.reduce((a,b)=>a+b)/values.length;
+
+  document.getElementById("stats").innerHTML=`
+  <div class="stat"><div class="label">Latest (Jan 2026)</div><div class="value">${format(latest)}</div></div>
+  <div class="stat"><div class="label">MoM Change</div><div class="value">${percentChange(latest,prev)}</div></div>
+  <div class="stat"><div class="label">24-Month Avg</div><div class="value">${format(avg)}</div></div>
+  <div class="stat"><div class="label">Peak Month</div><div class="value">${format(max)}</div></div>
+  `;
+}
+
+renderStats();
+</script>
+
+</body>
+</html>
