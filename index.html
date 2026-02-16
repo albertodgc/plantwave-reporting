@@ -10,63 +10,115 @@
 <style>
 body{
   font-family: system-ui, -apple-system, sans-serif;
-  background:#f9fafb;
+  background:#f4f6f9;
   margin:0;
-  padding:30px;
+  padding:40px;
   color:#111;
 }
+
 .container{
   max-width:1200px;
   margin:auto;
 }
+
 .card{
   background:#fff;
-  padding:20px;
-  border-radius:14px;
-  box-shadow:0 4px 18px rgba(0,0,0,.06);
+  padding:30px;
+  border-radius:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
 }
+
 h1{
-  font-size:20px;
-  margin-bottom:4px;
+  font-size:26px;
+  margin-bottom:6px;
 }
+
 .sub{
-  font-size:13px;
+  font-size:14px;
   color:#666;
-  margin-bottom:20px;
+  margin-bottom:25px;
 }
+
 .controls{
-  margin-bottom:15px;
+  margin-bottom:25px;
+  display:flex;
+  gap:12px;
 }
+
 button{
-  padding:8px 12px;
-  border-radius:8px;
+  padding:10px 16px;
+  border-radius:10px;
   border:1px solid #ddd;
   background:#fff;
   cursor:pointer;
+  font-size:14px;
+  font-weight:500;
 }
+
 button:hover{
-  background:#f2f2f2;
+  background:#f0f0f0;
 }
+
+.chart-wrapper{
+  height:500px;
+  margin-bottom:30px;
+}
+
 .stats{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:10px;
-  margin-top:15px;
+  gap:16px;
+  margin-bottom:30px;
 }
+
 .stat{
-  background:#f3f4f6;
-  padding:12px;
-  border-radius:10px;
+  background:#f8fafc;
+  padding:18px;
+  border-radius:14px;
 }
+
 .stat .label{
-  font-size:12px;
+  font-size:13px;
   color:#666;
+  margin-bottom:6px;
 }
+
 .stat .value{
-  font-size:18px;
+  font-size:22px;
+  font-weight:700;
+}
+
+.table-wrapper{
+  overflow-x:auto;
+  border-top:1px solid #eee;
+  padding-top:20px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+}
+
+th, td{
+  padding:10px;
+  text-align:center;
+  border-bottom:1px solid #eee;
+}
+
+th{
+  background:#f8fafc;
   font-weight:600;
 }
-canvas{
+
+tr:hover{
+  background:#f9fbff;
+}
+
+@media (max-width:900px){
+  .stats{
+    grid-template-columns:repeat(2,1fr);
+  }
 }
 </style>
 </head>
@@ -82,9 +134,26 @@ canvas{
       <button onclick="downloadChart()">Download PNG</button>
     </div>
 
-    <canvas id="chart"></canvas>
+    <div class="chart-wrapper">
+      <canvas id="chart"></canvas>
+    </div>
 
     <div class="stats" id="stats"></div>
+
+    <div class="table-wrapper">
+      <h3 style="margin-bottom:12px;">Monthly Data</h3>
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Revenue per Recipient ($)</th>
+            <th>MoM Change</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
   </div>
 </div>
 
@@ -112,6 +181,7 @@ function rollingAvg(data){
 function format(n){ return "$"+n.toFixed(4); }
 
 function percentChange(current,prev){
+  if(prev===undefined) return "-";
   const p=((current-prev)/prev)*100;
   return (p>0?"+":"")+p.toFixed(1)+"%";
 }
@@ -128,14 +198,16 @@ const chart=new Chart(ctx,{
         type:'bar',
         label:'Revenue per Recipient',
         data:values,
-        backgroundColor:'rgba(59,130,246,0.5)'
+        backgroundColor:'rgba(59,130,246,0.45)',
+        borderRadius:6
       },
       {
         type:'line',
         label:'Trend',
         data:values,
         borderColor:'#1d4ed8',
-        borderWidth:2,
+        borderWidth:3,
+        pointRadius:4,
         tension:0.25
       },
       {
@@ -143,8 +215,8 @@ const chart=new Chart(ctx,{
         label:'3M Rolling Avg',
         data:rolling,
         borderColor:'#ef4444',
-        borderDash:[5,5],
-        borderWidth:2,
+        borderDash:[6,6],
+        borderWidth:3,
         tension:0.3,
         hidden:true
       }
@@ -152,6 +224,7 @@ const chart=new Chart(ctx,{
   },
   options:{
     responsive:true,
+    maintainAspectRatio:false,
     interaction:{mode:'index',intersect:false},
     scales:{
       y:{
@@ -180,18 +253,32 @@ function renderStats(){
   const latest=values[values.length-1];
   const prev=values[values.length-2];
   const max=Math.max(...values);
-  const min=Math.min(...values);
   const avg=values.reduce((a,b)=>a+b)/values.length;
+  const peakMonth=labels[values.indexOf(max)];
 
   document.getElementById("stats").innerHTML=`
   <div class="stat"><div class="label">Latest (Jan 2026)</div><div class="value">${format(latest)}</div></div>
   <div class="stat"><div class="label">MoM Change</div><div class="value">${percentChange(latest,prev)}</div></div>
   <div class="stat"><div class="label">24-Month Avg</div><div class="value">${format(avg)}</div></div>
-  <div class="stat"><div class="label">Peak Month</div><div class="value">${format(max)}</div></div>
+  <div class="stat"><div class="label">Peak Month (${peakMonth})</div><div class="value">${format(max)}</div></div>
   `;
 }
 
+function renderTable(){
+  const tbody=document.querySelector("#dataTable tbody");
+  labels.forEach((month,i)=>{
+    const row=document.createElement("tr");
+    row.innerHTML=`
+      <td>${month}</td>
+      <td>${format(values[i])}</td>
+      <td>${percentChange(values[i],values[i-1])}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
 renderStats();
+renderTable();
 </script>
 
 </body>
